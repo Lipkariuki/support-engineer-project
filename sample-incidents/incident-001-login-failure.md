@@ -1,25 +1,48 @@
-# Incident 001
+# 🚨 Incident 001 — Login Failure
 
-## Issue
+> **Severity:** 🔴 High  
+> **Status:** ✅ Resolved  
+> **Date:** 2026-06-25  
 
-User cannot login.
+---
 
-## Symptoms
+## 🧩 Issue
+**User unable to log in to the application.**
 
-Invalid JWT error.
+---
 
-## Investigation
+## ⚠️ Symptoms
+- ❌ Invalid JWT error displayed
+- ❌ Session rejected on API requests
 
-Checked auth logs.
+---
 
-## Root Cause
+## 🔍 Investigation
+- Checked authentication logs
+- Verified token structure and expiry timestamps
+- Confirmed error reproducibility across sessions
 
-Expired token.
+---
 
-## Resolution
+## 💥 Root Cause
+> **Expired JWT token** was being used for authentication.
 
-User re-authenticated.
+---
 
-## Prevention
+## 🛠️ Resolution
+- User re-authenticated successfully
+- New valid token issued
+- Access restored
 
-Implement token refresh handling.
+---
+
+## 🛡️ Prevention
+- Implement automatic **token refresh handling**
+- Add client-side checks for token expiry
+- Improve error messaging for expired sessions
+
+---
+
+## 📌 Notes
+- No system-wide outage detected
+- Issue isolated to session lifecycle handling
