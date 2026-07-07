@@ -1,0 +1,261 @@
+# Lab 02 — MVCC & Dead Tuples
+
+> Understanding how PostgreSQL handles updates without overwriting existing rows.
+
+---
+
+## Objective
+
+One of PostgreSQL's biggest strengths is its ability to handle many users reading and writing data at the same time.
+
+Instead of overwriting existing rows during an UPDATE or DELETE operation, PostgreSQL creates a new version of the row.
+
+This behavior is called **Multi-Version Concurrency Control (MVCC)**.
+
+Understanding MVCC explains why PostgreSQL needs VACUUM, why dead tuples exist, and why PostgreSQL performs well under concurrent workloads.
+
+---
+
+# Key Concepts
+
+## MVCC
+
+MVCC stands for **Multi-Version Concurrency Control**.
+
+Rather than modifying an existing row, PostgreSQL creates a new version whenever a row is updated.
+
+This allows multiple transactions to access the database safely without constantly blocking each other.
+
+---
+
+## Tuple
+
+A tuple is PostgreSQL's physical representation of a row.
+
+For example:
+
+| id | name |
+|----|------|
+|1|Philip|
+
+Internally this row is stored as a tuple inside a page.
+
+Whenever the row is updated, PostgreSQL creates another tuple instead of replacing the original one.
+
+---
+
+## UPDATE
+
+Consider the following query:
+
+```sql
+UPDATE users
+SET name = 'Phil'
+WHERE id = 1;
+```
+
+Many people assume PostgreSQL changes the existing row.
+
+Instead, PostgreSQL:
+
+1. Creates a new tuple containing the updated data.
+2. Marks the previous tuple as obsolete.
+3. Makes the new tuple visible to future transactions.
+
+The original tuple remains on disk until PostgreSQL can safely remove it.
+
+---
+
+## Dead Tuple
+
+A dead tuple is an old row version that is no longer needed by any active transaction.
+
+Dead tuples still occupy space inside database pages until they are cleaned up.
+
+PostgreSQL removes these dead tuples using **VACUUM**, which we will cover in the next lab.
+
+---
+
+# How MVCC Works
+
+Imagine the following row exists.
+
+| id | name |
+|----|------|
+|1|Philip|
+
+An UPDATE is executed.
+
+```sql
+UPDATE users
+SET name = 'Phil'
+WHERE id = 1;
+```
+
+Internally PostgreSQL creates a new tuple.
+
+```
+Original Tuple (Old Version)
+
+id = 1
+name = Philip
+
+        │
+        │ UPDATE
+        ▼
+
+New Tuple (Current Version)
+
+id = 1
+name = Phil
+```
+
+The application only sees the newest visible tuple.
+
+The old tuple becomes a dead tuple once it is no longer required.
+
+---
+
+# Why PostgreSQL Uses MVCC
+
+Imagine two users access the same row.
+
+- Alice is reading customer information.
+- Bob updates that customer at the same time.
+
+Without MVCC, one user would often have to wait for the other.
+
+With MVCC:
+
+- Alice continues reading the old version.
+- Bob creates a new version.
+- Both operations continue safely.
+
+This greatly improves concurrency and reduces locking.
+
+---
+
+# Why This Matters for Support Engineers
+
+Imagine a customer says:
+
+> "Our database keeps getting larger even though we rarely insert new rows."
+
+A Support Engineer should consider:
+
+- Are rows being updated frequently?
+- Are dead tuples accumulating?
+- Is VACUUM running correctly?
+- Is table bloat increasing?
+
+Understanding MVCC is the first step toward answering these questions.
+
+---
+
+# Questions
+
+## 1. What is MVCC?
+
+MVCC (Multi-Version Concurrency Control) is PostgreSQL's method of managing concurrent transactions by creating new versions of rows instead of overwriting existing ones.
+
+---
+
+## 2. Why doesn't PostgreSQL overwrite rows during an UPDATE?
+
+Overwriting a row could interfere with other transactions that are still reading the old data.
+
+Creating a new tuple allows readers and writers to work simultaneously without blocking each other.
+
+---
+
+## 3. What is a dead tuple?
+
+A dead tuple is an old version of a row that is no longer visible to active transactions.
+
+It remains on disk until VACUUM removes it.
+
+---
+
+## 4. Why doesn't PostgreSQL remove dead tuples immediately?
+
+Another transaction may still need to read the old version of the row.
+
+PostgreSQL waits until it is safe before reclaiming the space.
+
+---
+
+## 5. How does MVCC improve database performance?
+
+MVCC allows multiple users to read and update data concurrently with minimal locking.
+
+This improves performance and scalability for busy databases.
+
+---
+
+# Diagram
+
+```
+
+Database
+
+│
+
+└── users table
+
+│
+
+└── Page
+
+│
+
+├── Tuple (Old)
+
+│ id = 1
+
+│ name = Philip
+
+│
+
+├── Tuple (New)
+
+│ id = 1
+
+│ name = Phil
+
+│
+
+└── Dead Tuple
+
+↓
+
+VACUUM (next lab)
+
+```
+
+---
+
+# Key Takeaways
+
+- MVCC stands for Multi-Version Concurrency Control.
+- PostgreSQL does not overwrite rows during an UPDATE.
+- Every UPDATE creates a new tuple.
+- Older row versions eventually become dead tuples.
+- Dead tuples remain on disk until VACUUM removes them.
+- MVCC allows many users to access the database simultaneously with minimal locking.
+- Understanding MVCC is essential before learning VACUUM and table bloat.
+
+---
+
+# Support Engineer Mindset
+
+When troubleshooting PostgreSQL, think beyond the UPDATE statement.
+
+Ask yourself:
+
+- Is this table updated frequently?
+- Could dead tuples be increasing storage usage?
+- Is autovacuum keeping up with cleanup?
+- Could table bloat be affecting performance?
+- Are long-running transactions preventing dead tuples from being removed?
+
+Understanding MVCC helps explain many PostgreSQL storage and performance issues that customers experience in production.
